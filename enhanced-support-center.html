@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>🚀 Центр Поддержки</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #ff6b35, #f7931e, #c44569, #546de5, #574b90);
+      color: white;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    .header { text-align: center; margin-bottom: 30px; }
+    .logo { font-size: 48px; margin-bottom: 10px; }
+    .title { font-size: 24px; font-weight: bold; margin-bottom: 8px; }
+    .subtitle { opacity: 0.9; margin-bottom: 20px; }
+    .loading { text-align: center; padding: 40px 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+    .card {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 16px;
+      padding: 20px;
+      cursor: pointer;
+      transition: 0.3s;
+      text-align: center;
+    }
+    .card:hover { transform: translateY(-4px); background: rgba(255,255,255,0.15); }
+    .avatar {
+      width: 60px; height: 60px; border-radius: 50%;
+      margin: 0 auto 12px; display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+    }
+    .tag { font-weight: bold; margin-bottom: 8px; font-size: 18px; }
+    .status { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .role { opacity: 0.8; font-size: 14px; }
+    .empty { text-align: center; padding: 40px 0; }
+    .show { display: block; }
+    .hide { display: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">🚀</div>
+    <div class="title">Центр Поддержки</div>
+    <div class="subtitle">Выберите администратора</div>
+  </div>
+
+  <div id="loading" class="loading">⏳ Загрузка...</div>
+  <div id="grid" class="grid hide"></div>
+  <div id="empty" class="empty hide">
+    <div style="font-size: 48px; margin-bottom: 12px;">👨‍💼</div>
+    <div>Администраторы недоступны</div>
+  </div>
+
+  <script>
+    console.log('🚀 Support Center V2 Loading...');
+
+    class SimpleSupport {
+      constructor() {
+        this.init();
+      }
+
+      init() {
+        if (window.Telegram?.WebApp) {
+          Telegram.WebApp.ready();
+          Telegram.WebApp.expand();
+          Telegram.WebApp.BackButton.show();
+          Telegram.WebApp.BackButton.onClick(() => Telegram.WebApp.close());
+        }
+        setTimeout(() => this.loadData(), 500);
+      }
+
+      loadData() {
+        console.log('📊 Loading admin data...');
+        
+        try {
+          const urlParams = new URLSearchParams(window.location.search);
+          const dataParam = urlParams.get('data');
+          
+          console.log('🔍 Data param found:', !!dataParam);
+          
+          if (!dataParam) {
+            console.log('❌ No data parameter');
+            this.showEmpty();
+            return;
+          }
+
+          const decoded = atob(dataParam);
+          const payload = JSON.parse(decoded);
+          const admins = payload.admins || [];
+          
+          console.log('👥 Loaded admins:', admins.length);
+          console.log('📋 Admins data:', admins);
+
+          if (admins.length === 0) {
+            this.showEmpty();
+            return;
+          }
+
+          this.renderAdmins(admins);
+          
+        } catch (error) {
+          console.error('❌ Error:', error);
+          this.showEmpty();
+        }
+      }
+
+      renderAdmins(admins) {
+        console.log('🎨 Rendering admins...');
+        
+        const loading = document.getElementById('loading');
+        const grid = document.getElementById('grid');
+        const empty = document.getElementById('empty');
+        
+        loading.classList.add('hide');
+        empty.classList.add('hide');
+        
+        grid.innerHTML = '';
+        
+        admins.forEach(admin => {
+          const card = this.createCard(admin);
+          grid.appendChild(card);
+        });
+        
+        grid.classList.remove('hide');
+        grid.classList.add('show');
+        
+        console.log('✅ Admins rendered successfully!');
+      }
+
+      createCard(admin) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        
+        const isOnline = admin.status === 'online';
+        const statusColor = isOnline ? '#2ecc71' : '#95a5a6';
+        const statusText = isOnline ? 'Онлайн' : 'Оффлайн';
+        
+        card.innerHTML = `
+          <div class="avatar" style="background: ${admin.accent_color || '#ff6b35'};">👨‍💼</div>
+          <div class="tag">#${admin.tag}</div>
+          <div class="status">
+            <div class="dot" style="background: ${statusColor};"></div>
+            <span>${statusText}</span>
+          </div>
+          <div class="role">${this.translateRole(admin.role)}</div>
+        `;
+        
+        card.addEventListener('click', () => {
+          console.log('🎯 Selected admin:', admin);
+          this.selectAdmin(admin);
+        });
+        
+        return card;
+      }
+
+      translateRole(role) {
+        const roles = { owner: 'Владелец', admin: 'Администратор', moderator: 'Модератор', support: 'Поддержка' };
+        return roles[role] || role;
+      }
+
+      selectAdmin(admin) {
+        const data = {
+          action: 'select_admin',
+          admin_id: admin.id,
+          admin_tag: admin.tag,
+          timestamp: Date.now()
+        };
+        
+        if (window.Telegram?.WebApp) {
+          Telegram.WebApp.sendData(JSON.stringify(data));
+        } else {
+          alert(`Выбран: #${admin.tag}`);
+        }
+      }
+
+      showEmpty() {
+        document.getElementById('loading').classList.add('hide');
+        document.getElementById('grid').classList.add('hide');
+        document.getElementById('empty').classList.remove('hide');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('🚀 DOM ready, starting app...');
+      new SimpleSupport();
+    });
+  </script>
+</body>
+</html>
